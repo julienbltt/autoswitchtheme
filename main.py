@@ -49,7 +49,7 @@ class Logger:
         # File Handler
         if not self.log_path:
             raise ValueError("log_path is required")
-        file_handler = TimedRotatingFileHandler(self.log_path / f"{name}.log", when="midnight", backupCount=30)    
+        file_handler = TimedRotatingFileHandler(self.log_path / f"{name}.log", when="m", backupCount=12)    
         file_handler.setFormatter(self._formatter())
         logger.addHandler(file_handler)
 
@@ -136,7 +136,7 @@ class TrayApp:
         self.icon.run()
 
 
-class SunHoursMonitor:
+class AppMonitor:
     def __init__(self, api_token: str, insee: str):
         self.api_token = api_token
         self.insee = insee
@@ -145,6 +145,20 @@ class SunHoursMonitor:
             "sunrise": None,
             "sunset": None,
         }
+        self.theme = None
+        self.sunrise_job = None
+        self.sunset_job = None
+
+    def update_sun_hours(self):
+        """Update sun hours"""
+        if schedule.get_jobs("switch-task"):
+            schedule.clear("switch-task")
+
+        self.get_sun_hours()
+        
+        if self.sun_hours["sunrise"] and self.sun_hours["sunset"]:
+            schedule.every().day.at(self.sun_hours["sunrise"]).do(self.switch_to_light_theme).tag("switch-task")
+            schedule.every().day.at(self.sun_hours["sunset"]).do(self.switch_to_dark_theme).tag("switch-task")
 
     def get_sun_hours(self):
 
@@ -158,30 +172,33 @@ class SunHoursMonitor:
                     self.sun_hours["timestamp"] = file_data["timestamp"]
                     self.sun_hours["sunrise"] = file_data["sunrise"][:5]
                     self.sun_hours["sunset"] = file_data["sunset"][:5]
-        else:
-            # Fetch sun hours from API
-            url = f"https://api.meteo-concept.com/api/ephemeride/0?token={self.api_token}&insee={self.insee}"
-            response = get(url)
-            ephemeride = response.json()
 
-            logger.info("Sun hours fetched from API")
+                    logger.debug(f"Sun hours: {self.sun_hours}")
+                    return self.sun_hours
 
-            # Update sun hours
-            self.sun_hours["timestamp"] = datetime.today().strftime("%Y-%m-%d")
-            self.sun_hours["sunrise"] = ephemeride["ephemeride"]["sunrise"][:5]
-            self.sun_hours["sunset"] = ephemeride["ephemeride"]["sunset"][:5]
-            
-            # Save sun hours to cache
-            with cache_path.open("w") as f:
-                file_data = self.sun_hours
-                json_dump(file_data, f)
+        # Fetch sun hours from API
+        url = f"https://api.meteo-concept.com/api/ephemeride/0?token={self.api_token}&insee={self.insee}"
+        response = get(url)
+        if response.status_code != 200:
+            logger.error(f"Error fetching sun hours: {response.status_code}")
+            return response.status_code
+        
+        ephemeride = response.json()
+
+        logger.info("Sun hours fetched from API")
+
+        # Update sun hours
+        self.sun_hours["timestamp"] = datetime.today().strftime("%Y-%m-%d")
+        self.sun_hours["sunrise"] = ephemeride["ephemeride"]["sunrise"][:5]
+        self.sun_hours["sunset"] = ephemeride["ephemeride"]["sunset"][:5]
+        
+        # Save sun hours to cache
+        with cache_path.open("w") as f:
+            file_data = self.sun_hours
+            json_dump(file_data, f)
 
         logger.debug(f"Sun hours: {self.sun_hours}")
         return self.sun_hours
-
-class ThemeMonitor:
-    def __init__(self):
-        self.theme = None
 
     def set_windows_theme(self, theme: str):
         """
@@ -214,7 +231,8 @@ class ThemeMonitor:
     def switch_to_dark_theme(self):
         if self.theme != "dark":
             self.set_windows_theme("dark")
-            self.theme = "dark"
+            self.theme = "dark" 
+
 
 def main_thread(tray_app: TrayApp):
     """Main application logic running in separate thread"""
@@ -226,44 +244,21 @@ def main_thread(tray_app: TrayApp):
     api_token = config.get("api", "token")
     insee = config.get("location", "insee", fallback="06088")
 
-    # Initialize theme monitor
-    theme_monitor = ThemeMonitor()
-
     # Initialize sun hours monitor
-    sun_hours_monitor = SunHoursMonitor(api_token, insee)
-    schedule.every().day.at("00:00").do(sun_hours_monitor.get_sun_hours)
+    app_monitor = AppMonitor(api_token, insee)
+    schedule.every().day.at("00:01").do(app_monitor.update_sun_hours)
 
     # Connect monitors to tray app
-    tray_app.theme_monitor = theme_monitor
-    tray_app.sun_hours_monitor = sun_hours_monitor
+    tray_app.app_monitor = app_monitor
 
     # Get sun hours at startup
-    sun_hours = sun_hours_monitor.get_sun_hours()
-    logger.info(f"Sun hours data: {sun_hours}")
+    app_monitor.update_sun_hours()
+    logger.info(f"Sun hours data: {app_monitor.sun_hours}")
 
     # Run scheduler
     while tray_app.running:
-        time_now = datetime.now()
-        time_sunrise = datetime.strptime(sun_hours["timestamp"] + " " + sun_hours["sunrise"], "%Y-%m-%d %H:%M")
-        time_sunset = datetime.strptime(sun_hours["timestamp"] + " " + sun_hours["sunset"], "%Y-%m-%d %H:%M")
-
-        logger.debug("Checking theme")
-        logger.debug("Current time: {}, Sunrise: {}, Sunset: {}".format(
-                time_now,
-                time_sunrise,
-                time_sunset
-            )
-        )
-
-        if(time_now >= time_sunrise and time_now < time_sunset):
-            theme_monitor.switch_to_light_theme()
-            logger.debug("Switching to light theme")
-        else:
-            theme_monitor.switch_to_dark_theme()
-            logger.debug("Switching to dark theme")
-
         schedule.run_pending()
-        sleep(60)
+        sleep(1)
 
     logger.info("Main application thread stopped")
 
