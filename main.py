@@ -49,7 +49,7 @@ class Logger:
         # File Handler
         if not self.log_path:
             raise ValueError("log_path is required")
-        file_handler = TimedRotatingFileHandler(self.log_path / f"{name}.log", when="m", backupCount=12)    
+        file_handler = TimedRotatingFileHandler(self.log_path / f"{name}.log", when="D", interval=30, backupCount=12)
         file_handler.setFormatter(self._formatter())
         logger.addHandler(file_handler)
 
