@@ -245,15 +245,15 @@ def main_thread(tray_app: TrayApp):
     insee = config.get("location", "insee", fallback="06088")
 
     # Initialize sun hours monitor
-    app_monitor = AppMonitor(api_token, insee)
-    schedule.every().day.at("00:01").do(app_monitor.update_sun_hours)
+    theme_monitor = AppMonitor(api_token, insee)
+    schedule.every().day.at("00:01").do(theme_monitor.update_sun_hours)
 
     # Connect monitors to tray app
-    tray_app.app_monitor = app_monitor
+    tray_app.theme_monitor = theme_monitor
 
     # Get sun hours at startup
-    app_monitor.update_sun_hours()
-    logger.info(f"Sun hours data: {app_monitor.sun_hours}")
+    tray_app.theme_monitor.update_sun_hours()
+    logger.info(f"Sun hours data: {tray_app.theme_monitor.sun_hours}")
 
     # Run scheduler
     while tray_app.running:
@@ -269,7 +269,7 @@ def main():
 
     # Create tray app
     tray_app = TrayApp()
-    tray_icon = tray_app.setup_tray()
+    tray_app.setup_tray()
 
     # Start main logic in separate thread
     main_thread_obj = threading.Thread(
