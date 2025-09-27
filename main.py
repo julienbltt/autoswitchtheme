@@ -9,14 +9,14 @@ from os import getenv, system
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import pystray
-from PIL import Image, ImageDraw
+from PIL import Image
 import threading
 
-
+# === Constants === #
 APPDATA_PATH = Path(getenv("APPDATA")) / "AutoSwitchTheme"
 APPDATA_PATH.mkdir(parents=True, exist_ok=True)
 
-
+# === Logger class === #
 class Logger:
     def __init__(self, log_path: Path | None = None, debug: bool = False):
         self.log_path = log_path
@@ -60,9 +60,15 @@ class Logger:
         return logging.getLogger(name)
 
 
-logger = Logger(APPDATA_PATH / "logs", True).setup_logger("app")
+# === Global instructions === #
+# Load config
+config = ConfigParser()
+config.read(APPDATA_PATH / "config.ini")
+# Setup logger
+logger = Logger(APPDATA_PATH / config.get("log", "path", fallback="logs"), config.getboolean("log", "debug", fallback=False)).setup_logger("app")
 
 
+# === TrayApp class === #
 class TrayApp:
     def __init__(self):
         self.icon = None
@@ -135,7 +141,7 @@ class TrayApp:
         """Run the tray icon (blocking)"""
         self.icon.run()
 
-
+# === AppMonitor class === #
 class AppMonitor:
     def __init__(self, api_token: str, insee: str):
         self.api_token = api_token
@@ -173,7 +179,7 @@ class AppMonitor:
                     self.sun_hours["sunrise"] = file_data["sunrise"][:5]
                     self.sun_hours["sunset"] = file_data["sunset"][:5]
 
-                    logger.debug(f"Sun hours: {self.sun_hours}")
+                    logger.info(f"Sun hours: {self.sun_hours}")
                     return self.sun_hours
 
         # Fetch sun hours from API
@@ -227,20 +233,22 @@ class AppMonitor:
         if self.theme != "light":
             self.set_windows_theme("light")
             self.theme = "light"
+        else:
+            logger.info("Theme already set to light")
 
     def switch_to_dark_theme(self):
         if self.theme != "dark":
             self.set_windows_theme("dark")
             self.theme = "dark" 
+        else:
+            logger.info("Theme already set to dark")
 
-
+# === Main thread === #
 def main_thread(tray_app: TrayApp):
     """Main application logic running in separate thread"""
     logger.info("Starting main application thread")
 
     # Load config
-    config = ConfigParser()
-    config.read(APPDATA_PATH / "config.ini")
     api_token = config.get("api", "token")
     insee = config.get("location", "insee", fallback="06088")
 
@@ -253,7 +261,21 @@ def main_thread(tray_app: TrayApp):
 
     # Get sun hours at startup
     tray_app.theme_monitor.update_sun_hours()
-    logger.info(f"Sun hours data: {tray_app.theme_monitor.sun_hours}")
+    logger.debug(f"Sun hours data: {tray_app.theme_monitor.sun_hours}")
+
+    # Update theme at startup
+    datetime_now = datetime.now().time()
+    datetime_sunrise =  datetime.strptime(tray_app.theme_monitor.sun_hours["sunrise"], "%H:%M").time()
+    datetime_sunset = datetime.strptime(tray_app.theme_monitor.sun_hours["sunset"], "%H:%M").time()
+    logger.debug(f"DateTime now: {datetime_now}, DateTime sunrise: {datetime_sunrise}, DateTime sunset: {datetime_sunset}")
+
+    logger.debug(f"Test(datetime_sunrise <= datetime_now <= datetime_sunset): {datetime_sunrise <= datetime_now <= datetime_sunset}")
+    if datetime_sunrise <= datetime_now <= datetime_sunset:
+        logger.debug("Switching to light theme...")
+        tray_app.theme_monitor.switch_to_light_theme()
+    else:
+        logger.debug("Switching to dark theme...")
+        tray_app.theme_monitor.switch_to_dark_theme()
 
     # Run scheduler
     while tray_app.running:
@@ -262,28 +284,38 @@ def main_thread(tray_app: TrayApp):
 
     logger.info("Main application thread stopped")
 
-
+# === Main function === #
 def main():
     """Main entry point - setup tray and start threads"""
     logger.info("AutoSwitchTheme starting...")
 
     # Create tray app
+    logger.debug("Creating tray app...")
     tray_app = TrayApp()
+    logger.debug("Tray app created.")
+    logger.debug("Setting up tray app...")
     tray_app.setup_tray()
+    logger.debug("Tray app setup.")
 
     # Start main logic in separate thread
+    logger.debug("Starting main logic in separate thread...")
     main_thread_obj = threading.Thread(
         target=main_thread,
         args=(tray_app,),
         daemon=True
     )
     main_thread_obj.start()
+    logger.debug("Main logic in separate thread started.")
 
     # Run tray icon (blocking - this keeps the app running)
-    logger.info("Application minimized to system tray")
+    logger.debug("Running tray app...")
     tray_app.run_tray()
+    logger.debug("Tray app running.")
+    logger.info("Application minimized to system tray")
 
     logger.info("Application stopped")
 
+
+# === Entry point === #
 if __name__ == "__main__":
     raise SystemExit(main())
