@@ -100,4 +100,6 @@ class TrayApp:
 
     def run_tray(self):
         """Run the tray icon (blocking)"""
+        logger.debug("Tray app running.")
+        logger.info("Application minimized to system tray")
         self.icon.run()

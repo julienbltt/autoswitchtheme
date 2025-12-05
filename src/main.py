@@ -1,28 +1,78 @@
 """Entry point for AutoSwitchTheme application"""
 from datetime import datetime
 from time import sleep
-import schedule
 import threading
+
+from requests import get, RequestException
+import schedule
+from astral import LocationInfo
 
 from utils.config import APPDATA_PATH, config
 from utils.logger import Logger
 from core.tray_app import TrayApp
 from core.app_monitor import AppMonitor
 
+
 # Setup logger
 logger = Logger(APPDATA_PATH / config.get("log", "path", fallback="logs"), config.getboolean("log", "debug", fallback=False)).setup_logger("app")
+
 
 # === Main thread === #
 def main_thread(tray_app: TrayApp):
     """Main application logic running in separate thread"""
     logger.info("Starting main application thread")
 
-    # Load config
-    api_token = config.get("api", "token")
-    insee = config.get("location", "insee", fallback="06088")
+    # Check internet connexion
+    is_connected = None
+    try:
+        get("http://www.msftconnecttest.com/connecttest.txt", timeout=3)
+    except:
+        is_connected = False
+        logger.warning("Internet connection unavailable")
+    else:
+        is_connected = True
+        logger.info("Connected to the internet")
+        
+
+    # Get localisation from IP API
+    if is_connected:
+        try:
+            response = get('https://ipinfo.io/json', timeout=3)
+        except RequestException as e:
+            logger.error(f"Error fetching location: {response.status_code}")
+        else:
+            data = response.json()
+            latitude, longitude = (e for e in data['loc'].split(','))
+
+            logger.debug("Location fetch from API.")
+
+            #Save location in config file
+            if not config.has_section("location"):
+                config.add_section("location")
+            
+            config.set("location", "city", data['city'])
+            config.set("location", "region", data['region'])
+            config.set("location", "timezone", data['timezone'])
+            config.set("location", "latitude", latitude)
+            config.set("location", "longitude", longitude)
+            
+            with open(APPDATA_PATH / "config.ini", 'w') as configfile:
+                config.write(configfile)
+
+            logger.debug("Location saved into the configuration file.")
+
+    # Load localisation:
+    city = LocationInfo(
+        name=config.get("location", "city"),
+        region=config.get("location", "region"),
+        timezone=config.get("location", "timezone"),
+        latitude=config.getfloat("location", "latitude"),
+        longitude=config.getfloat("location", "longitude")
+    )
+    logger.debug("Location loaded.")
 
     # Initialize sun hours monitor
-    theme_monitor = AppMonitor(api_token, insee)
+    theme_monitor = AppMonitor(city)
     schedule.every().day.at("00:01").do(theme_monitor.update_sun_hours)
 
     # Connect monitors to tray app
@@ -79,9 +129,6 @@ def main():
     # Run tray icon (blocking - this keeps the app running)
     logger.debug("Running tray app...")
     tray_app.run_tray()
-    logger.debug("Tray app running.")
-    logger.info("Application minimized to system tray")
-
     logger.info("Application stopped")
 
 

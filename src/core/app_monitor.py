@@ -8,6 +8,8 @@ from winreg import REG_DWORD
 
 from requests import get
 import schedule
+from astral import LocationInfo
+from astral.sun import sun
 
 from utils.config import APPDATA_PATH
 from utils.logger import Logger
@@ -17,9 +19,8 @@ logger = Logger.get_logger("app")
 
 
 class AppMonitor:
-    def __init__(self, api_token: str, insee: str):
-        self.api_token = api_token
-        self.insee = insee
+    def __init__(self, city: LocationInfo):
+        self.city = city
         self.sun_hours = {
             "timestamp": None,
             "sunrise": None,
@@ -56,21 +57,15 @@ class AppMonitor:
                     logger.info(f"Sun hours: {self.sun_hours}")
                     return self.sun_hours
 
-        # Fetch sun hours from API
-        url = f"https://api.meteo-concept.com/api/ephemeride/0?token={self.api_token}&insee={self.insee}"
-        response = get(url)
-        if response.status_code != 200:
-            logger.error(f"Error fetching sun hours: {response.status_code}")
-            return response.status_code
+        # Calcul ephemeris
+        ephemeris = sun(self.city.observer, date=datetime.now(), tzinfo=self.city.timezone)
 
-        ephemeride = response.json()
-
-        logger.info("Sun hours fetched from API")
+        logger.info("Sun hours calculated")
 
         # Update sun hours
         self.sun_hours["timestamp"] = datetime.today().strftime("%Y-%m-%d")
-        self.sun_hours["sunrise"] = ephemeride["ephemeride"]["sunrise"][:5]
-        self.sun_hours["sunset"] = ephemeride["ephemeride"]["sunset"][:5]
+        self.sun_hours["sunrise"] = ephemeris['sunrise'].strftime('%H:%M')
+        self.sun_hours["sunset"] = ephemeris['sunset'].strftime('%H:%M')
 
         # Save sun hours to cache
         with cache_path.open("w") as f:
