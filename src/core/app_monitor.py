@@ -1,7 +1,12 @@
-from requests import get
 from datetime import datetime
 from json import dump as json_dump, load as json_load
-from os import system
+# Natif Windows registeries manager.
+from winreg import OpenKey
+from winreg import SetValueEx
+from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE
+from winreg import REG_DWORD
+
+from requests import get
 import schedule
 
 from utils.config import APPDATA_PATH
@@ -81,22 +86,33 @@ class AppMonitor:
         Args:
             theme: 'light' or 'dark'
         """
+        key = OpenKey(
+            HKEY_CURRENT_USER,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            0,
+            KEY_SET_VALUE
+        )
+        
         try:
             if theme.lower() == "light":
                 # Enable light theme
-                system('reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 1 /f >nul 2>&1')
-                system('reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 1 /f >nul 2>&1')
+                SetValueEx(key, "AppsUseLightTheme", 0, REG_DWORD, 1)
+                SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, 1)
             elif theme.lower() == "dark":
                 # Enable dark theme
-                system('reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f >nul 2>&1')
-                system('reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f >nul 2>&1')
+                SetValueEx(key, "AppsUseLightTheme", 0, REG_DWORD, 0)
+                SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, 0)
             else:
                 raise ValueError("Theme must be 'light' or 'dark'")
-
-            logger.info(f"Theme changed to {theme}")
-
+            
         except Exception as e:
             logger.error(f"Error changing theme: {e}")
+
+        else:
+            logger.info(f"Theme changed to {theme}")
+            
+        finally:
+            key.Close()
 
     def switch_to_light_theme(self):
         if self.theme != "light":
