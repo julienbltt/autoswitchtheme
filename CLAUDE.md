@@ -10,7 +10,12 @@ AutoSwitchTheme is a Windows system tray application that automatically switches
 
 ### Running the Application
 ```bash
-python main.py
+python -m src
+```
+
+Or:
+```bash
+python -m src.main
 ```
 
 ### Installing Dependencies
@@ -20,7 +25,7 @@ pip install -r requierement.txt
 
 ### Building Executable
 ```bash
-pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme main.py
+pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme src/main.py
 ```
 
 ## Architecture
@@ -28,7 +33,8 @@ pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme main.py
 The application follows a modular structure with three main layers:
 
 ### 1. Entry Point Flow
-- `main.py` (root) → `src/main.py` → Starts two concurrent processes:
+- Execute with `python src/main.py`
+- `src/main.py` → Starts two concurrent processes:
   - Main thread: Scheduler loop for theme switching
   - Tray thread: System tray UI (blocking)
 
@@ -80,7 +86,9 @@ The application requires:
 
 ## Important Notes
 
-- The app modifies Windows registry - changes take effect immediately but may require Windows Explorer refresh for full UI update
-- Ephemeris cache expires daily (compared by timestamp in `%Y-%m-%d` format)
-- All logs go to `%APPDATA%/AutoSwitchTheme/logs/app.log`
-- The `schedule` library is used for time-based task execution (not cron or Windows Task Scheduler)
+- **Package Structure**: This project uses a package-based structure. The application must be run as a module: `python -m src`
+- **Import Style**: All modules within `src/` use relative imports (e.g., `from .utils.config import APPDATA_PATH`)
+- **Registry Modifications**: The app modifies Windows registry - changes take effect immediately but may require Windows Explorer refresh for full UI update
+- **Ephemeris Cache**: Cache expires daily (compared by timestamp in `%Y-%m-%d` format)
+- **Logging**: All logs go to `%APPDATA%/AutoSwitchTheme/logs/app.log`
+- **Scheduler**: The `schedule` library is used for time-based task execution (not cron or Windows Task Scheduler)

@@ -91,7 +91,13 @@ AutoSwitchTheme is a lightweight system tray application that synchronizes your 
 Start the application in development mode:
 
 ```bash
-python main.py
+python -m src
+```
+
+Or directly:
+
+```bash
+python -m src.main
 ```
 
 The application will:
@@ -113,13 +119,21 @@ Right-click the system tray icon to access:
 
 ### Building an Executable
 
+#### PyInstaller
+
 Create a standalone executable with PyInstaller:
 
 ```bash
-pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme main.py
+pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme src/main.py
 ```
 
 The executable will be created in the `dist/` directory.
+
+### Nuitka
+
+```bash
+python -m nuitka --mingw64 --onefile --assume-yes-for-downloads --remove-output --enable-plugin=pylint-warnings --enable-plugin=anti-bloat --windows-disable-console --include-package=requests --include-package=schedule --include-package=pystray --include-package=Pillow --include-package=astral --output-filename=autoswitchtheme.exe src/main.py
+```
 
 ## How It Works
 
@@ -151,16 +165,18 @@ AutoSwitchTheme uses a multi-threaded architecture to manage theme switching:
 
 ```
 autoswitchtheme/
-├── main.py                     # Entry point
 ├── requierement.txt            # Python dependencies
 ├── README.md                   # Project documentation
 ├── CLAUDE.md                   # Claude Code guidance
 └── src/
-    ├── main.py                 # Application logic
+    ├── __init__.py             # Package initialization
+    ├── main.py                 # Entry point
     ├── utils/                  # Utility modules
+    │   ├── __init__.py
     │   ├── config.py           # Configuration loader
     │   └── logger.py           # Logging setup
     └── core/                   # Core components
+        ├── __init__.py
         ├── app_monitor.py      # Theme & solar data manager
         └── tray_app.py         # System tray interface
 ```

@@ -1,8 +1,8 @@
 import pystray
 from PIL import Image
 
-from ..utils.config import APPDATA_PATH
-from ..utils.logger import Logger
+from utils.config import APPDATA_PATH
+from utils.logger import Logger
 
 
 logger = Logger.get_logger("app")

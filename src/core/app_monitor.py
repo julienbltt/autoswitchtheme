@@ -4,8 +4,8 @@ from json import dump as json_dump, load as json_load
 from os import system
 import schedule
 
-from ..utils.config import APPDATA_PATH
-from ..utils.logger import Logger
+from utils.config import APPDATA_PATH
+from utils.logger import Logger
 
 
 logger = Logger.get_logger("app")

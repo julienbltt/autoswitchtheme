@@ -219,5 +219,8 @@ __marimo__/
 Output/
 *.iss
 
+# Build
+*.exe
+
 # Personal test folder
 workbench/
