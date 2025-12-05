@@ -77,7 +77,7 @@ class AppMonitor:
             file_data = self.sun_hours
             json_dump(file_data, f)
 
-        logger.debug(f"Sun hours: {self.sun_hours}")
+        logger.info(f"Sun hours: {self.sun_hours}")
         return self.sun_hours
 
     def set_windows_theme(self, theme: str):
