@@ -28,10 +28,13 @@ AutoSwitchTheme is a lightweight system tray application that synchronizes your 
 ## Features
 
 - **Automatic Theme Switching** - Seamlessly toggles between light and dark themes based on sunrise/sunset times
-- **Location-Based Solar Data** - Fetches accurate sunrise/sunset times using the Meteo-Concept API
+- **Automatic Location Detection** - Detects your location automatically via IP geolocation (ipinfo.io)
+- **Local Solar Calculations** - Computes sunrise/sunset times locally using the Astral library
+- **Internet Connectivity Check** - Validates internet connection before making external API calls
 - **System Tray Integration** - Minimal interface that runs quietly in the background
 - **Manual Override** - Force light or dark theme at any time via the tray menu
-- **Smart Caching** - Reduces API calls by caching solar data for 24 hours
+- **Enhanced Status Display** - View current status and automatically open log file with one click
+- **Smart Caching** - Stores location data in configuration file to minimize API calls
 - **Comprehensive Logging** - Built-in logging with automatic rotation (30-day retention)
 
 ## Getting Started
@@ -40,7 +43,7 @@ AutoSwitchTheme is a lightweight system tray application that synchronizes your 
 
 - **Operating System**: Windows 10 or Windows 11
 - **Python**: Version 3.8 or higher
-- **API Key**: Free Meteo-Concept API key ([Get one here](https://api.meteo-concept.com/))
+- **Internet Connection**: Required for initial location detection (optional after first run)
 
 ### Installation
 
@@ -52,35 +55,31 @@ AutoSwitchTheme is a lightweight system tray application that synchronizes your 
 
 2. **Install dependencies**:
    ```bash
-   pip install -r requierement.txt
+   pip install -r requirement.txt
    ```
 
 ### Configuration
 
-1. **Obtain a Meteo-Concept API key**:
-   - Visit [https://api.meteo-concept.com/](https://api.meteo-concept.com/)
-   - Create a free account
-   - Copy your API token
+1. **Create the configuration file** (optional):
 
-2. **Create the configuration file**:
-
-   Navigate to `%APPDATA%\AutoSwitchTheme\` and create a `config.ini` file:
+   The application will automatically detect your location on first run. However, you can manually create a `config.ini` file in `%APPDATA%\AutoSwitchTheme\`:
 
    ```ini
-   [api]
-   token = YOUR_API_TOKEN_HERE
-
    [location]
-   insee = 06033  # INSEE code for your city (e.g., 06033 for Nice, France)
+   city = YourCity
+   region = YourRegion
+   timezone = Your/Timezone
+   latitude = 43.7
+   longitude = 7.25
 
    [log]
    path = logs
    debug = false
    ```
 
-   > **Finding your INSEE code**: Use this [INSEE code lookup tool](https://www.insee.fr/fr/information/2560452)
+   > **Note**: Location will be auto-detected and saved on first run if you have an internet connection.
 
-3. **Add the application icon**:
+2. **Add the application icon**:
 
    Place an `app.ico` file in `%APPDATA%\AutoSwitchTheme\` (or the application will log an error)
 
@@ -91,20 +90,15 @@ AutoSwitchTheme is a lightweight system tray application that synchronizes your 
 Start the application in development mode:
 
 ```bash
-python -m src
-```
-
-Or directly:
-
-```bash
-python -m src.main
+python -m src/main.py
 ```
 
 The application will:
-1. Load configuration from `%APPDATA%\AutoSwitchTheme\config.ini`
-2. Fetch sunrise/sunset times for your location
-3. Apply the appropriate theme based on current time
-4. Minimize to the system tray
+1. Check internet connectivity
+2. Automatically detect your location (if connected to internet)
+3. Calculate sunrise/sunset times for your location
+4. Apply the appropriate theme based on current time
+5. Minimize to the system tray
 
 ### System Tray Menu
 
@@ -112,14 +106,39 @@ Right-click the system tray icon to access:
 
 | Menu Item | Description |
 |-----------|-------------|
-| **Show Status** | Display current theme and solar hours in logs |
+| **Show Status** | Display current theme and solar hours in logs, then open log file automatically |
 | **Force Light Theme** | Manually switch to light theme |
 | **Force Dark Theme** | Manually switch to dark theme |
 | **Quit** | Exit the application |
 
 ### Building an Executable
 
-#### PyInstaller
+#### Automated Nuitka Build (Recommended)
+
+Use the PowerShell builder script for automatic command generation:
+
+```powershell
+.\builder.ps1 -MainFile "src\main.py" -OutputName "AutoSwitchTheme.exe" -IconFile "app.ico" -CompanyName "YourCompany" -ProductName "AutoSwitchTheme" -Version "1.0.0.0" -DisableConsole -Execute
+```
+
+**Parameters:**
+- `-MainFile`: Main Python file (required)
+- `-OutputName`: Output executable name
+- `-IconFile`: Icon file path
+- `-CompanyName`: Company name for metadata
+- `-ProductName`: Product name for metadata
+- `-Version`: Version number
+- `-DisableConsole`: Hide console window (GUI mode)
+- `-Execute`: Automatically execute the build after generating the command
+- `-Standalone`: Use standalone mode instead of onefile
+
+The script will:
+1. Auto-detect dependencies from `requirement.txt`
+2. Generate optimized Nuitka command
+3. Save command to `build.bat`
+4. Execute compilation (if `-Execute` flag is used)
+
+#### Manual PyInstaller Build
 
 Create a standalone executable with PyInstaller:
 
@@ -129,10 +148,11 @@ pyinstaller -F -w --optimize=2 --icon app.ico -n AutoSwitchTheme src/main.py
 
 The executable will be created in the `dist/` directory.
 
-### Nuitka
+#### Manual Nuitka Build
 
 ```bash
-python -m nuitka --mingw64 --onefile --assume-yes-for-downloads --remove-output --enable-plugin=pylint-warnings --enable-plugin=anti-bloat --windows-disable-console --include-package=requests --include-package=schedule --include-package=pystray --include-package=Pillow --include-package=astral --output-filename=autoswitchtheme.exe src/main.py
+python -m nuitka --mingw64 --standalone --lto=yes --prefer-source-code --assume-yes-for-downloads --remove-output --enable-plugin=pylint-warnings --enable-plugin=anti-bloat --windows-console-mode=disable --include-package=requests 
+--include-package=schedule --include-package=pystray --include-package=PIL --include-package=astral --include-data-dir=assets --output-filename=autoswitchtheme.exe src/main.py
 ```
 
 ## How It Works
@@ -140,13 +160,14 @@ python -m nuitka --mingw64 --onefile --assume-yes-for-downloads --remove-output 
 AutoSwitchTheme uses a multi-threaded architecture to manage theme switching:
 
 1. **Startup Phase**:
-   - Loads configuration from `%APPDATA%\AutoSwitchTheme\config.ini`
-   - Fetches sunrise/sunset times from Meteo-Concept API
-   - Caches solar data locally to minimize API calls
+   - Checks internet connectivity using Microsoft's connectivity test endpoint
+   - Auto-detects location via IP geolocation (ipinfo.io API)
+   - Saves location data to `%APPDATA%\AutoSwitchTheme\config.ini`
+   - Calculates sunrise/sunset times locally using Astral library with detected coordinates
    - Immediately applies appropriate theme based on current time
 
 2. **Scheduling Phase**:
-   - Schedules daily API refresh at 00:01 AM
+   - Schedules daily solar time recalculation at 00:01 AM
    - Schedules theme switches at sunrise (→ light) and sunset (→ dark)
    - Runs scheduler loop in daemon thread (checks every second)
 
@@ -159,13 +180,14 @@ AutoSwitchTheme uses a multi-threaded architecture to manage theme switching:
 4. **System Tray**:
    - Runs on main thread (blocking)
    - Provides manual override controls
-   - Displays status on demand
+   - Displays status and opens log file automatically
 
 ## Project Structure
 
 ```
 autoswitchtheme/
-├── requierement.txt            # Python dependencies
+├── requirement.txt             # Python dependencies
+├── builder.ps1                 # PowerShell build automation script
 ├── README.md                   # Project documentation
 ├── CLAUDE.md                   # Claude Code guidance
 └── src/
@@ -185,10 +207,11 @@ autoswitchtheme/
 
 | Component | File | Responsibility |
 |-----------|------|----------------|
-| **AppMonitor** | `src/core/app_monitor.py` | Manages solar data fetching, caching, and theme switching via Windows Registry |
-| **TrayApp** | `src/core/tray_app.py` | Provides system tray UI and manual controls |
+| **AppMonitor** | `src/core/app_monitor.py` | Manages local solar calculations and theme switching via Windows Registry |
+| **TrayApp** | `src/core/tray_app.py` | Provides system tray UI, manual controls, and log file access |
 | **Logger** | `src/utils/logger.py` | Configures logging with timed rotation |
 | **Config** | `src/utils/config.py` | Loads configuration and defines constants |
+| **Builder** | `builder.ps1` | PowerShell script to generate Nuitka build commands automatically |
 
 ### Data Storage
 
@@ -196,21 +219,24 @@ All runtime data is stored in `%APPDATA%\AutoSwitchTheme\`:
 
 | File/Directory | Purpose |
 |----------------|---------|
-| `config.ini` | User configuration (API key, location, logging settings) |
+| `config.ini` | User configuration (location coordinates, timezone, logging settings) - auto-generated on first run |
 | `app.ico` | System tray icon |
-| `logs/` | Application logs with 30-day rotation |
-| `sun_hours.json` | Cached sunrise/sunset times (refreshed daily) |
+| `logs/app.log` | Application logs with 30-day rotation |
+| `sun_hours.json` | Cached sunrise/sunset times (recalculated daily) |
 
 ## Configuration Reference
 
 ### Configuration File (`config.ini`)
 
-```ini
-[api]
-token = YOUR_TOKEN_HERE          # Meteo-Concept API token (required)
+The configuration file is automatically created on first run. You can manually edit it if needed:
 
+```ini
 [location]
-insee = 06033                    # INSEE code for your city (default: Nice)
+city = Nice                      # City name (auto-detected)
+region = Provence-Alpes-Côte d'Azur  # Region name (auto-detected)
+timezone = Europe/Paris          # Timezone (auto-detected)
+latitude = 43.7                  # Latitude coordinate (auto-detected)
+longitude = 7.25                 # Longitude coordinate (auto-detected)
 
 [log]
 path = logs                      # Log directory name (relative to APPDATA)
@@ -221,7 +247,8 @@ debug = false                    # Enable debug logging (true/false)
 
 | Component | Frequency | Details |
 |-----------|-----------|---------|
-| Solar data | Daily at 00:01 | Fetches fresh sunrise/sunset times from API |
+| Location detection | Once on first run (or when config missing) | Fetches location via IP geolocation API |
+| Solar calculation | Daily at 00:01 | Recalculates sunrise/sunset times locally |
 | Theme check | Every 1 second | Scheduler loop checks for pending tasks |
 | Log rotation | Every 30 days | Keeps 12 backup files (1 year retention) |
 
@@ -229,11 +256,11 @@ debug = false                    # Enable debug logging (true/false)
 
 | Package | Purpose |
 |---------|---------|
-| `requests` | HTTP API calls to Meteo-Concept |
+| `requests` | HTTP API calls for location detection |
 | `schedule` | Task scheduling for theme switches |
 | `pystray` | System tray icon and menu |
 | `Pillow` | Icon image handling |
-| `astral` | Optional astronomical calculations |
+| `astral` | Astronomical calculations for sunrise/sunset times |
 
 ## Troubleshooting
 
@@ -241,11 +268,11 @@ debug = false                    # Enable debug logging (true/false)
 
 | Problem | Solution |
 |---------|----------|
-| **API Error** | Verify API token and INSEE code in `config.ini` |
+| **Location not detected** | Check internet connection, or manually add location to `config.ini` |
 | **Theme not changing** | Restart Windows Explorer: `taskkill /F /IM explorer.exe && start explorer.exe` |
-| **Application won't start** | Check logs at `%APPDATA%\AutoSwitchTheme\logs\app.log` |
+| **Application won't start** | Check logs at `%APPDATA%\AutoSwitchTheme\logs\app.log` (use "Show Status" menu item) |
 | **Icon not showing** | Ensure `app.ico` exists in `%APPDATA%\AutoSwitchTheme\` |
-| **Wrong theme at startup** | Verify your INSEE code matches your actual location |
+| **Wrong sun times** | Verify location coordinates in `config.ini` or delete config to re-detect |
 
 ### Debug Mode
 
@@ -267,7 +294,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Important Notes
 
 - **Registry Modifications**: This application modifies Windows registry settings to change themes. While designed to be safe, it's recommended to back up your registry before intensive use.
-- **API Usage**: The free tier of Meteo-Concept API has rate limits. This application caches data daily to stay within limits.
+- **Internet Connection**: Required only for initial location detection. Once configured, the app works offline using local solar calculations.
+- **Location Privacy**: Your location is detected via IP geolocation and stored locally in the config file. No data is sent to external servers after initial detection.
 - **Windows Compatibility**: Tested on Windows 10 and Windows 11. May not work on older versions.
 
 ## Contributing
