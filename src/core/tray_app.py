@@ -1,7 +1,12 @@
+from subprocess import run
+from winreg import OpenKey, QueryValue
+from winreg import HKEY_CLASSES_ROOT
+from os.path import splitext
+
 import pystray
 from PIL import Image
 
-from utils.config import APPDATA_PATH
+from utils.config import config, APPDATA_PATH
 from utils.logger import Logger
 
 
@@ -12,7 +17,6 @@ class TrayApp:
     def __init__(self):
         self.icon = None
         self.theme_monitor = None
-        self.sun_hours_monitor = None
         self.running = True
 
     def load_icon(self):
@@ -27,11 +31,29 @@ class TrayApp:
 
     def on_show_status(self, icon, item):
         """Show current status"""
-        if self.theme_monitor and self.sun_hours_monitor:
-            current_theme = self.theme_monitor.theme
-            sun_hours = self.sun_hours_monitor.sun_hours
-            logger.info(f"Current theme: {current_theme}")
-            logger.info(f"Sun hours: {sun_hours}")
+        if self.theme_monitor:
+            logger.info(f"Current theme: {self.theme_monitor.theme}")
+            logger.info(f"Sun hours: {self.theme_monitor.sun_hours}")
+
+            # Open the file with the default application for the specific extension.
+            filepath = APPDATA_PATH / config.get("log", "path", fallback="logs") / "app.log"
+            _, extension = splitext(filepath)
+            try:
+                if not extension:
+                    raise ValueError("No extension")
+                # Look for the association for this extension in the registry
+                with OpenKey(HKEY_CLASSES_ROOT, extension) as key:
+                    progid = QueryValue(key, None)
+                # Get the open command
+                with OpenKey(HKEY_CLASSES_ROOT, rf'{progid}\shell\open\command') as key:
+                    command = QueryValue(key, None)
+                # Replace %1 with the file path
+                command = command.replace('%1', f'"{filepath}"').replace('"%1"', f'"{filepath}"')
+                # Execute the command
+                run(command, shell=True)
+            except Exception:
+                # No extension or no association found, use Notepad
+                run(['notepad.exe', filepath])
 
     def on_force_light(self, icon, item):
         """Force light theme"""
