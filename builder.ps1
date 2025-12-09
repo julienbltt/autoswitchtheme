@@ -11,7 +11,7 @@ param(
     [string]$IconFile = "",
     [string]$CompanyName = "",
     [string]$ProductName = "",
-    [string]$Version = "1.0.0.0",
+    [string]$Version = "2.0.0",
     [switch]$Standalone,
     [switch]$DisableConsole,
     [switch]$Execute,
@@ -105,10 +105,12 @@ Write-Step "Generating command..."
 
 $cmd = @(
     "python -m nuitka"
-    "--mingw64"
     $mode
-    "--output-filename=$OutputName"
+    "--mingw64"
+    "--lto=yes"
     "--assume-yes-for-downloads"
+    "--output-filename=$OutputName"
+    "--output-folder-name=$OutputName"
     "--remove-output"
     "--enable-plugin=pylint-warnings"
     "--enable-plugin=anti-bloat"
@@ -128,13 +130,13 @@ if ($DisableConsole) {
 
 # Metadata
 if ($CompanyName) {
-    $cmd += "--windows-company-name=`"$CompanyName`""
+    $cmd += "--company-name=`"$CompanyName`""
 }
 if ($ProductName) {
-    $cmd += "--windows-product-name=`"$ProductName`""
+    $cmd += "--product-name=`"$ProductName`""
 }
-$cmd += "--windows-file-version=`"$Version`""
-$cmd += "--windows-product-version=`"$Version`""
+$cmd += "--file-version=`"$Version`""
+$cmd += "--product-version=`"$Version`""
 
 # Packages
 foreach ($pkg in $packages) {
@@ -149,9 +151,9 @@ if ($DataFiles) {
         if ($file) {
             $source = ($file -split '=')[0].Trim()
             if (Test-Path $source -PathType Container) {
-                $cmd += "--include-data-dir=`"$file`""
+                $cmd += "--include-data-dir=`"$file`"=`"$file`""
             } else {
-                $cmd += "--include-data-file=`"$file`""
+                $cmd += "--include-data-file=`"$file`"=`"$file`""
             }
         }
     }
