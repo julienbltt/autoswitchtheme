@@ -11,14 +11,14 @@ import schedule
 from astral import LocationInfo
 from astral.sun import sun
 
-from utils.config import APPDATA_PATH
 from utils.logger import Logger
+from utils.path import Paths
 
 
 logger = Logger.get_logger("app")
 
 
-class AppMonitor:
+class Switch:
     def __init__(self, city: LocationInfo):
         self.city = city
         self.sun_hours = {
@@ -44,7 +44,7 @@ class AppMonitor:
     def get_sun_hours(self):
 
         # Check if sun hours are cached
-        cache_path = APPDATA_PATH / "sun_hours.json"
+        cache_path = Paths.get_data_dir() / "ephemeris.json"
         if cache_path.exists():
             with cache_path.open("r") as f:
                 file_data = json_load(f)

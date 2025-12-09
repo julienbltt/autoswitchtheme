@@ -7,14 +7,15 @@ from requests import get, RequestException
 import schedule
 from astral import LocationInfo
 
-from utils.config import APPDATA_PATH, config
+from utils.config import configurator
 from utils.logger import Logger
-from core.tray_app import TrayApp
-from core.app_monitor import AppMonitor
+from utils.path import Paths
+from core.tray import TrayApp
+from core.switch import Switch
 
 
 # Setup logger
-logger = Logger(APPDATA_PATH / config.get("log", "path", fallback="logs"), config.getboolean("log", "debug", fallback=False)).setup_logger("app")
+logger = Logger(Paths.get_log_file(), configurator.getboolean("log", "debug", fallback=False)).setup_logger("app")
 
 
 # === Main thread === #
@@ -46,33 +47,43 @@ def main_thread(tray_app: TrayApp):
 
             logger.debug("Location fetch from API.")
 
-            #Save location in config file
-            if not config.has_section("location"):
-                config.add_section("location")
+            #Save location in configuration file
+            configurator.set("location", "city", data['city'])
+            configurator.set("location", "region", data['region'])
+            configurator.set("location", "timezone", data['timezone'])
+            configurator.set("location", "latitude", latitude)
+            configurator.set("location", "longitude", longitude)
             
-            config.set("location", "city", data['city'])
-            config.set("location", "region", data['region'])
-            config.set("location", "timezone", data['timezone'])
-            config.set("location", "latitude", latitude)
-            config.set("location", "longitude", longitude)
-            
-            with open(APPDATA_PATH / "config.ini", 'w') as configfile:
-                config.write(configfile)
+            with open(Paths.get_config_file(), 'w') as configfile:
+                configurator.write(configfile)
 
             logger.debug("Location saved into the configuration file.")
 
-    # Load localisation:
-    city = LocationInfo(
-        name=config.get("location", "city"),
-        region=config.get("location", "region"),
-        timezone=config.get("location", "timezone"),
-        latitude=config.getfloat("location", "latitude"),
-        longitude=config.getfloat("location", "longitude")
-    )
+    latitude = configurator.getfloat("location", "latitude")
+    longitude = configurator.getfloat("location", "longitude")
+    if latitude == 0.0 and longitude == 0.0:
+        #TODO: Use fixed hours, not a fixed city
+        city = LocationInfo(
+            name="Paris",
+            region="France",
+            timezone="Europe/Paris",
+            latitude=48.8333,
+            longitude=2.33333
+        )
+
+    else:
+        city = LocationInfo(
+            name=configurator.get("location", "city"),
+            region=configurator.get("location", "region"),
+            timezone=configurator.get("location", "timezone"),
+            latitude=latitude,
+            longitude=longitude
+        )
+    
     logger.debug("Location loaded.")
 
     # Initialize sun hours monitor
-    theme_monitor = AppMonitor(city)
+    theme_monitor = Switch(city)
     schedule.every().day.at("00:01").do(theme_monitor.update_sun_hours)
 
     # Connect monitors to tray app

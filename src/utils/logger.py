@@ -4,10 +4,8 @@ from pathlib import Path
 
 
 class Logger:
-    def __init__(self, log_path: Path | None = None, debug: bool = False):
-        self.log_path = log_path
-        if self.log_path and not self.log_path.exists():
-            self.log_path.mkdir(parents=True, exist_ok=True)
+    def __init__(self, path: str | Path | None = None, debug: bool = False):
+        self.path = Path(path) if type(path) is str else path
         self.debug = debug
 
     def _formatter(self) -> logging.Formatter:
@@ -33,9 +31,7 @@ class Logger:
         logger.addHandler(console_handler)
 
         # File Handler
-        if not self.log_path:
-            raise ValueError("log_path is required")
-        file_handler = TimedRotatingFileHandler(self.log_path / f"{name}.log", when="D", interval=30, backupCount=12)
+        file_handler = TimedRotatingFileHandler(self.path, when="D", interval=30, backupCount=12)
         file_handler.setFormatter(self._formatter())
         logger.addHandler(file_handler)
 

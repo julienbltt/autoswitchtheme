@@ -1,11 +1,22 @@
 from configparser import ConfigParser
-from pathlib import Path
-from os import getenv
 
-# === Constants === #
-APPDATA_PATH = Path(getenv("APPDATA")) / "AutoSwitchTheme"
-APPDATA_PATH.mkdir(parents=True, exist_ok=True)
+from utils.path import Paths
+
 
 # Load config
-config = ConfigParser()
-config.read(APPDATA_PATH / "config.ini")
+configurator = ConfigParser()
+if Paths.get_config_file().exists():
+    configurator.read(Paths.get_config_file())
+else:
+    configurator.add_section("logs")
+    configurator.set("logs", "debug", "false")
+    
+    configurator.add_section("location")
+    configurator.set("location", "city", "")
+    configurator.set("location", "region", "")
+    configurator.set("location", "timezone", "")
+    configurator.set("location", "latitude", "0.0")
+    configurator.set("location", "longitude", "0.0")
+
+    with open(Paths.get_config_file(), 'x') as configfile:
+        configurator.write(configfile)

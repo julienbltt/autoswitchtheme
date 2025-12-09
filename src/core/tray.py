@@ -6,8 +6,9 @@ from os.path import splitext
 import pystray
 from PIL import Image
 
-from utils.config import config, APPDATA_PATH
 from utils.logger import Logger
+from utils.path import Paths
+
 
 
 logger = Logger.get_logger("app")
@@ -21,11 +22,11 @@ class TrayApp:
 
     def load_icon(self):
         """Load a simple icon for the tray"""
-        icon_path = APPDATA_PATH / "app.ico"
+        icon_path = Paths.get_assets_dir() / "icon.ico"
         if icon_path.exists():
             return Image.open(icon_path)
         else:
-            logger.error("Icon not found")
+            logger.error(f"Icon not found (Path:{icon_path})")
             return None
 
 
@@ -36,7 +37,7 @@ class TrayApp:
             logger.info(f"Sun hours: {self.theme_monitor.sun_hours}")
 
             # Open the file with the default application for the specific extension.
-            filepath = APPDATA_PATH / config.get("log", "path", fallback="logs") / "app.log"
+            filepath = Paths.get_log_file()
             _, extension = splitext(filepath)
             try:
                 if not extension:
