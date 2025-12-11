@@ -12,7 +12,6 @@ build/
 develop-eggs/
 dist/
 *.dist/
-*.setup/
 downloads/
 eggs/
 .eggs/
@@ -218,11 +217,12 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Inno Setup
-Output/
-*.iss
+*.setup/
+#*.iss
 
 # Build
 *.exe
 
 # Personal test folder
 workbench/
+docs/
