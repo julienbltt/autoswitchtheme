@@ -44,6 +44,8 @@ jobs:
     name: Build with Nuitka
     needs: syntax-check
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
