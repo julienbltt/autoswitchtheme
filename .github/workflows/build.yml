@@ -94,7 +94,7 @@ jobs:
 
           # Exécuter le builder.ps1 avec les paramètres
           .\builder.ps1 `
-            -MainFile "src\main.py" `
+            -MainFile "main.py" `
             -OutputName "autoswitchtheme" `
             -IconFile "assets\icon.ico" `
             -CompanyName "NOVENTARIS" `
