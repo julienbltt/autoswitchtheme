@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 
-from utils.path import Paths
+from src.utils.path import Paths
 
 
 # Load config
@@ -10,7 +10,7 @@ if Paths.get_config_file().exists():
 else:
     configurator.add_section("logs")
     configurator.set("logs", "debug", "false")
-    
+
     configurator.add_section("location")
     configurator.set("location", "city", "")
     configurator.set("location", "region", "")
@@ -18,5 +18,5 @@ else:
     configurator.set("location", "latitude", "0.0")
     configurator.set("location", "longitude", "0.0")
 
-    with open(Paths.get_config_file(), 'x') as configfile:
+    with open(Paths.get_config_file(), "x") as configfile:
         configurator.write(configfile)

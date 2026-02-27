@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 class Logger:
-    def __init__(self, path: str | Path | None = None, debug: bool = False):
-        self.path = Path(path) if type(path) is str else path
+    def __init__(self, path: Path, debug: bool = False):
+        self.path = path
         self.debug = debug
 
     def _formatter(self) -> logging.Formatter:
@@ -15,10 +15,7 @@ class Logger:
             "%(name)s:%(funcName)s:%(lineno)d "
             "- %(message)s"
         )
-        return logging.Formatter(
-            format,
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        return logging.Formatter(format, datefmt="%Y-%m-%d %H:%M:%S")
 
     def setup_logger(self, name: str) -> logging.Logger:
         logger = logging.getLogger(name)
@@ -31,7 +28,9 @@ class Logger:
         logger.addHandler(console_handler)
 
         # File Handler
-        file_handler = TimedRotatingFileHandler(self.path, when="D", interval=30, backupCount=12)
+        file_handler = TimedRotatingFileHandler(
+            self.path, when="D", interval=30, backupCount=12
+        )
         file_handler.setFormatter(self._formatter())
         logger.addHandler(file_handler)
 

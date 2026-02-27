@@ -1,18 +1,14 @@
+from ctypes import windll
 from datetime import datetime
 from json import dump as json_dump, load as json_load
-# Natif Windows registeries manager.
-from winreg import OpenKey
-from winreg import SetValueEx
-from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE
-from winreg import REG_DWORD
+from winreg import HKEY_CURRENT_USER, KEY_SET_VALUE, REG_DWORD, OpenKey, SetValueEx
 
-from requests import get
 import schedule
 from astral import LocationInfo
 from astral.sun import sun
 
-from utils.logger import Logger
-from utils.path import Paths
+from src.utils.logger import Logger
+from src.utils.path import Paths
 
 
 logger = Logger.get_logger("app")
@@ -38,8 +34,12 @@ class Switch:
         self.get_sun_hours()
 
         if self.sun_hours["sunrise"] and self.sun_hours["sunset"]:
-            schedule.every().day.at(self.sun_hours["sunrise"]).do(self.switch_to_light_theme).tag("switch-task")
-            schedule.every().day.at(self.sun_hours["sunset"]).do(self.switch_to_dark_theme).tag("switch-task")
+            schedule.every().day.at(self.sun_hours["sunrise"]).do(
+                self.switch_to_light_theme
+            ).tag("switch-task")
+            schedule.every().day.at(self.sun_hours["sunset"]).do(
+                self.switch_to_dark_theme
+            ).tag("switch-task")
 
     def get_sun_hours(self):
 
@@ -58,14 +58,16 @@ class Switch:
                     return self.sun_hours
 
         # Calcul ephemeris
-        ephemeris = sun(self.city.observer, date=datetime.now(), tzinfo=self.city.timezone)
+        ephemeris = sun(
+            self.city.observer, date=datetime.now(), tzinfo=self.city.timezone
+        )
 
         logger.info("Sun hours calculated")
 
         # Update sun hours
         self.sun_hours["timestamp"] = datetime.today().strftime("%Y-%m-%d")
-        self.sun_hours["sunrise"] = ephemeris['sunrise'].strftime('%H:%M')
-        self.sun_hours["sunset"] = ephemeris['sunset'].strftime('%H:%M')
+        self.sun_hours["sunrise"] = ephemeris["sunrise"].strftime("%H:%M")
+        self.sun_hours["sunset"] = ephemeris["sunset"].strftime("%H:%M")
 
         # Save sun hours to cache
         with cache_path.open("w") as f:
@@ -85,9 +87,9 @@ class Switch:
             HKEY_CURRENT_USER,
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize",
             0,
-            KEY_SET_VALUE
+            KEY_SET_VALUE,
         )
-        
+
         try:
             if theme.lower() == "light":
                 # Enable light theme
@@ -99,13 +101,26 @@ class Switch:
                 SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, 0)
             else:
                 raise ValueError("Theme must be 'light' or 'dark'")
-            
+
         except Exception as e:
             logger.error(f"Error changing theme: {e}")
 
         else:
+            HWND_BROADCAST = 0xFFFF
+            WM_SETTINGCHANGE = 0x001A
+            SMTO_ABORTIFHUNG = 0x0002
+            windll.user32.SendMessageTimeoutW(
+                HWND_BROADCAST,
+                WM_SETTINGCHANGE,
+                0,
+                "ImmersiveColorSet",
+                SMTO_ABORTIFHUNG,
+                5000,
+                None,
+            )
+
             logger.info(f"Theme changed to {theme}")
-            
+
         finally:
             key.Close()
 

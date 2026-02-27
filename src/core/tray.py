@@ -1,14 +1,12 @@
-from subprocess import run
-from winreg import OpenKey, QueryValue
-from winreg import HKEY_CLASSES_ROOT
 from os.path import splitext
+from subprocess import run
+from winreg import HKEY_CLASSES_ROOT, OpenKey, QueryValue
 
 import pystray
 from PIL import Image
 
-from utils.logger import Logger
-from utils.path import Paths
-
+from src.utils.logger import Logger
+from src.utils.path import Paths
 
 
 logger = Logger.get_logger("app")
@@ -16,7 +14,7 @@ logger = Logger.get_logger("app")
 
 class TrayApp:
     def __init__(self):
-        self.icon = None
+        self.icon: pystray.Icon = None
         self.theme_monitor = None
         self.running = True
 
@@ -28,7 +26,6 @@ class TrayApp:
         else:
             logger.error(f"Icon not found (Path:{icon_path})")
             return None
-
 
     def on_show_status(self, icon, item):
         """Show current status"""
@@ -46,15 +43,17 @@ class TrayApp:
                 with OpenKey(HKEY_CLASSES_ROOT, extension) as key:
                     progid = QueryValue(key, None)
                 # Get the open command
-                with OpenKey(HKEY_CLASSES_ROOT, rf'{progid}\shell\open\command') as key:
+                with OpenKey(HKEY_CLASSES_ROOT, rf"{progid}\shell\open\command") as key:
                     command = QueryValue(key, None)
                 # Replace %1 with the file path
-                command = command.replace('%1', f'"{filepath}"').replace('"%1"', f'"{filepath}"')
+                command = command.replace("%1", f'"{filepath}"').replace(
+                    '"%1"', f'"{filepath}"'
+                )
                 # Execute the command
                 run(command, shell=True)
             except Exception:
                 # No extension or no association found, use Notepad
-                run(['notepad.exe', filepath])
+                run(["notepad.exe", filepath])
 
     def on_force_light(self, icon, item):
         """Force light theme"""
@@ -86,15 +85,12 @@ class TrayApp:
             pystray.MenuItem("Force Light Theme", self.on_force_light),
             pystray.MenuItem("Force Dark Theme", self.on_force_dark),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", self.on_quit)
+            pystray.MenuItem("Quit", self.on_quit),
         )
 
         # Create the icon
         self.icon = pystray.Icon(
-            "AutoSwitchTheme",
-            icon_image,
-            "Auto Switch Theme",
-            menu
+            "AutoSwitchTheme", icon_image, "Auto Switch Theme", menu
         )
 
         return self.icon
