@@ -1,60 +1,56 @@
 # ============================================================================
-# PowerShell Script - Automatic Nuitka Command Generator
-# Automatic version (no interaction)
+# Nuitka Generator - uv workflow
 # ============================================================================
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$MainFile,
-    
+
     [string]$OutputName = "",
     [string]$IconFile = "",
     [string]$CompanyName = "",
     [string]$ProductName = "",
-    [string]$Version = "2.0.0",
+    [string]$Version = "0.1.0",
     [switch]$Standalone,
     [switch]$DisableConsole,
     [switch]$Execute,
     [string]$DataFiles = ""
 )
 
-# Functions to display messages
-function Write-Step {
-    param($Text)
-    Write-Host "[+] $Text" -ForegroundColor Cyan
-}
-
-function Write-OK {
-    param($Text)
-    Write-Host "[OK] $Text" -ForegroundColor Green
-}
-
-function Write-Warn {
-    param($Text)
-    Write-Host "[!] $Text" -ForegroundColor Yellow
-}
+function Write-Step { param($Text) Write-Host "[+] $Text" -ForegroundColor Cyan }
+function Write-OK { param($Text) Write-Host "[OK] $Text" -ForegroundColor Green }
+function Write-Warn { param($Text) Write-Host "[!] $Text" -ForegroundColor Yellow }
 
 # ============================================================================
-# Function to read requirement.txt
+# Read dependencies from pyproject.toml
 # ============================================================================
 function Get-Packages {
-    if (-not (Test-Path "requirement.txt")) {
-        Write-Warn "requirement.txt not found"
-        return @()
-    }
-    
     $packages = @()
-    Get-Content "requirement.txt" | ForEach-Object {
-        if ($_ -match '^([a-zA-Z0-9_\-\.]+)') {
-            if ($matches[1] -ieq "pillow" -or $matches[1] -ieq "Pillow") {
-                $packages += "PIL"
-            }
-            else {
-                $packages += $matches[1]
-            }
+    $mappings = @{
+        'pillow'           = 'PIL'
+        'websocket-client' = 'websocket'
+        'obsws-python'     = 'obsws_python'
+        'opencv-python'    = 'cv2'
+        'scikit-learn'     = 'sklearn'
+        'beautifulsoup4'   = 'bs4'
+    }
+
+    if (Test-Path "pyproject.toml") {
+        $content = Get-Content "pyproject.toml" -Raw
+        if ($content -match 'dependencies\s*=\s*\[([\s\S]*?)\]') {
+            $matches[1] | Select-String -Pattern '"([a-zA-Z0-9_\-\.]+)' -AllMatches |
+                ForEach-Object { $_.Matches } |
+                ForEach-Object {
+                    $pkg = $_.Groups[1].Value.ToLower()
+                    if ($mappings.ContainsKey($pkg)) {
+                        $packages += $mappings[$pkg]
+                    } else {
+                        $packages += $_.Groups[1].Value
+                    }
+                }
         }
     }
-    return $packages
+    return $packages | Select-Object -Unique
 }
 
 # ============================================================================
@@ -63,19 +59,39 @@ function Get-Packages {
 
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host " Nuitka Generator - Automatic Mode" -ForegroundColor Yellow
+Write-Host " Nuitka Generator - uv run workflow" -ForegroundColor Yellow
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Verifications
+# Check uv
 Write-Step "Checking environment..."
 try {
-    $null = python -m nuitka --version 2>&1
-    Write-OK "Nuitka detected"
+    $uvVersion = (uv --version 2>&1) -join ""
+    Write-OK "uv detected: $uvVersion"
 } catch {
-    Write-Host "[ERROR] Nuitka not installed" -ForegroundColor Red
+    Write-Host "[ERROR] uv not installed" -ForegroundColor Red
     exit 1
 }
+
+# Check/install Nuitka in the project
+Write-Step "Checking Nuitka in dev dependencies..."
+$pyproject = Get-Content "pyproject.toml" -Raw -ErrorAction SilentlyContinue
+if ($pyproject -notmatch 'nuitka') {
+    Write-Warn "Nuitka not found in pyproject.toml, installing..."
+    uv add --dev nuitka
+    Write-OK "Nuitka added to dev dependencies"
+} else {
+    Write-OK "Nuitka present in pyproject.toml"
+}
+
+# Synchronize dependencies
+Write-Step "Synchronizing dependencies..."
+uv sync
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] uv sync failed" -ForegroundColor Red
+    exit 1
+}
+Write-OK "Dependencies synchronized"
 
 # Check main file
 if (-not (Test-Path $MainFile)) {
@@ -92,21 +108,22 @@ if (-not $OutputName) {
 # Mode
 $mode = if ($Standalone) { "--standalone" } else { "--onefile" }
 
-# Detect packages
+# Package detection
 Write-Step "Detecting dependencies..."
 $packages = Get-Packages
-Write-OK "$($packages.Count) packages detected"
+Write-OK "$($packages.Count) packages detected: $($packages -join ', ')"
 
 # ============================================================================
-# Command Generation
+# Command generation
 # ============================================================================
 
 Write-Step "Generating command..."
 
 $cmd = @(
-    "python -m nuitka"
+    "uv run python -m nuitka"    # <-- Key change: uv run instead of uvx
     $mode
-    "--mingw64"
+    # "--mingw64"
+    "--msvc=latest"
     "--lto=yes"
     "--assume-yes-for-downloads"
     "--output-filename=$OutputName"
@@ -129,12 +146,8 @@ if ($DisableConsole) {
 }
 
 # Metadata
-if ($CompanyName) {
-    $cmd += "--company-name=`"$CompanyName`""
-}
-if ($ProductName) {
-    $cmd += "--product-name=`"$ProductName`""
-}
+if ($CompanyName) { $cmd += "--company-name=`"$CompanyName`"" }
+if ($ProductName) { $cmd += "--product-name=`"$ProductName`"" }
 $cmd += "--file-version=`"$Version`""
 $cmd += "--product-version=`"$Version`""
 
@@ -145,12 +158,10 @@ foreach ($pkg in $packages) {
 
 # Data files
 if ($DataFiles) {
-    $filesList = $DataFiles -split ','
-    foreach ($file in $filesList) {
-        $file = $file.Trim()
+    $DataFiles -split ',' | ForEach-Object {
+        $file = $_.Trim()
         if ($file) {
-            $source = ($file -split '=')[0].Trim()
-            if (Test-Path $source -PathType Container) {
+            if (Test-Path $file -PathType Container) {
                 $cmd += "--include-data-dir=`"$file`"=`"$file`""
             } else {
                 $cmd += "--include-data-file=`"$file`"=`"$file`""
@@ -172,7 +183,6 @@ $command = $cmd -join " "
 $command | Out-File -FilePath "build.bat" -Encoding ASCII
 Write-OK "Command saved: build.bat"
 
-# Display
 Write-Host ""
 Write-Host "Generated command:" -ForegroundColor Yellow
 Write-Host $command -ForegroundColor White
@@ -196,7 +206,6 @@ if ($Execute) {
         Write-Host "==================================================" -ForegroundColor Green
         Write-Host " COMPILATION SUCCESSFUL!" -ForegroundColor Green
         Write-Host "==================================================" -ForegroundColor Green
-        Write-Host ""
         Write-OK "Executable: $OutputName"
 
         if (Test-Path $OutputName) {
@@ -204,7 +213,6 @@ if ($Execute) {
             Write-OK "Size: $sizeMB MB"
         }
     } else {
-        Write-Host ""
         Write-Host "[ERROR] Compilation failed (code: $LASTEXITCODE)" -ForegroundColor Red
     }
 } else {

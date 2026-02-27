@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[project]
+name = "autoswitchtheme"
+version = "2.0.0"
+description = "Automatic Windows theme switcher based on sunrise/sunset times"
+authors = [
+    { name = "Julien Balderiotti", email = "julien.balderiotti@noventaris.fr" }
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "requests",
+    "schedule",
+    "pystray",
+    "Pillow",
+    "astral",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "ruff>=0.15.1",
+    "ty>=0.0.17",
+    "nuitka>=4.0",
+]
+
+[tool.ty.environment]
+python-version = "3.11"
+python-platform = "win32"
+
+[tool.ty.src]
+include = ["src"]
+exclude = ["build", "dist", ".venv"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "warn"
+unused-ignore-comment = "warn"
+division-by-zero = "error"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+force-single-line = false
+combine-as-imports = true
+lines-after-imports = 2
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
