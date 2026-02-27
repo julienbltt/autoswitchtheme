@@ -8,7 +8,7 @@ class Paths:
     @staticmethod
     def get_app_dir():
         """Répertoire d'installation (Program Files)"""
-        return Path(__file__).parent.parent
+        return Path(__file__).parent.parent.parent
 
     @staticmethod
     def get_assets_dir():
