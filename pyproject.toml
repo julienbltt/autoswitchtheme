@@ -7,7 +7,7 @@ packages = ["src"]
 
 [project]
 name = "autoswitchtheme"
-version = "2.0.0"
+version = "2.1.0"
 description = "Automatic Windows theme switcher based on sunrise/sunset times"
 authors = [
     { name = "Julien Balderiotti", email = "julien.balderiotti@noventaris.fr" }
