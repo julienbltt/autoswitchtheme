@@ -90,17 +90,16 @@ class Switch:
             KEY_SET_VALUE,
         )
 
+        value: int | None = (
+            1 if theme.lower() == "light" else 0 if theme.lower() == "dark" else None
+        )
+
         try:
-            if theme.lower() == "light":
-                # Enable light theme
-                SetValueEx(key, "AppsUseLightTheme", 0, REG_DWORD, 1)
-                SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, 1)
-            elif theme.lower() == "dark":
-                # Enable dark theme
-                SetValueEx(key, "AppsUseLightTheme", 0, REG_DWORD, 0)
-                SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, 0)
-            else:
+            if value is None:
                 raise ValueError("Theme must be 'light' or 'dark'")
+
+            SetValueEx(key, "AppsUseLightTheme", 0, REG_DWORD, value)
+            SetValueEx(key, "SystemUsesLightTheme", 0, REG_DWORD, value)
 
         except Exception as e:
             logger.error(f"Error changing theme: {e}")
@@ -108,15 +107,20 @@ class Switch:
         else:
             HWND_BROADCAST = 0xFFFF
             WM_SETTINGCHANGE = 0x001A
-            SMTO_ABORTIFHUNG = 0x0002
-            windll.user32.SendMessageTimeoutW(
+            WM_THEMECHANGED = 0x031A
+
+            windll.user32.SendNotifyMessageW(
                 HWND_BROADCAST,
                 WM_SETTINGCHANGE,
                 0,
                 "ImmersiveColorSet",
-                SMTO_ABORTIFHUNG,
-                5000,
-                None,
+            )
+
+            windll.user32.SendNotifyMessageW(
+                HWND_BROADCAST,
+                WM_THEMECHANGED,
+                0,
+                0,
             )
 
             logger.info(f"Theme changed to {theme}")
