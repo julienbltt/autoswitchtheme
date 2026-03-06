@@ -15,7 +15,7 @@ on:
 
 jobs:
   quality:
-    name: Code Quality
+    name: Quality
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,13 +26,13 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Type checking
+      - name: Type
         run: uv run ty check
 
       - name: Lint
-        run: uv run ruff check
+        run: uv run ruff check --fix
 
-      - name: Format check
+      - name: Format
         run: uv run ruff format --check
 
   tests:

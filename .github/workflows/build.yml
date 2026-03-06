@@ -12,7 +12,7 @@ on:
 
 jobs:
   quality:
-    name: Code Quality
+    name: Quality
     if: startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')
     runs-on: windows-latest
     steps:
@@ -24,13 +24,13 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Type checking
+      - name: Type
         run: uv run ty check
 
       - name: Lint
-        run: uv run ruff check
+        run: uv run ruff check --fix
 
-      - name: Format check
+      - name: Format
         run: uv run ruff format --check
 
   tests:
@@ -67,7 +67,7 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Extract version from pyproject.toml
+      - name: Extract version
         id: version
         shell: pwsh
         run: |
@@ -104,7 +104,7 @@ jobs:
             -Execute `
             -DataFiles "assets"
 
-      - name: Verify build output
+      - name: Verify build
         shell: pwsh
         run: |
           $exePath = "autoswitchtheme.dist\autoswitchtheme.exe"
@@ -126,7 +126,7 @@ jobs:
             exit 1
           }
 
-      - name: Create installer with Inno Setup
+      - name: Create installer
         id: create_installer
         shell: pwsh
         run: |
