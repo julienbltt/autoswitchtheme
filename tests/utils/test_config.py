@@ -1,7 +1,5 @@
 from configparser import ConfigParser
 
-import pytest
-
 
 class TestConfiguratorImport:
     """Tests sur le module config déjà chargé (import-time execution)."""

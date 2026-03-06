@@ -1,7 +1,5 @@
 import logging
 
-import pytest
-
 from src.utils.logger import Logger
 
 
@@ -33,8 +31,8 @@ class TestSetupLogger:
         assert log_file.exists()
 
     def test_default_debug_is_false(self, tmp_path):
-        l = Logger(tmp_path / "test.log")
-        assert l.debug is False
+        logger = Logger(tmp_path / "test.log")
+        assert logger.debug is False
 
 
 class TestGetLogger:

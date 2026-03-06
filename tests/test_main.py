@@ -1,8 +1,6 @@
 from datetime import datetime, time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_tray_app(switch_instance):
     """Return a MagicMock TrayApp whose running flag stops the scheduler loop."""
@@ -24,17 +22,19 @@ def _run_main_thread(switch_instance, now_time: time, online: bool = False):
 
     get_side_effect = MagicMock() if online else Exception("no internet")
 
-    with patch("main.schedule"):
-        with patch("main.get", side_effect=get_side_effect):
-            with patch("main.Switch", return_value=switch_instance):
-                with patch("main.configurator") as mock_cfg:
-                    mock_cfg.getfloat.side_effect = [48.8333, 2.33333]
-                    mock_cfg.get.side_effect = ["Paris", "France", "Europe/Paris"]
-                    mock_cfg.getboolean.return_value = False
-                    with patch("main.datetime") as mock_dt:
-                        mock_dt.now.return_value.time.return_value = now_time
-                        mock_dt.strptime = datetime.strptime
-                        main_thread(tray_app)
+    with (
+        patch("main.schedule"),
+        patch("main.get", side_effect=get_side_effect),
+        patch("main.Switch", return_value=switch_instance),
+        patch("main.configurator") as mock_cfg,
+        patch("main.datetime") as mock_dt,
+    ):
+        mock_cfg.getfloat.side_effect = [48.8333, 2.33333]
+        mock_cfg.get.side_effect = ["Paris", "France", "Europe/Paris"]
+        mock_cfg.getboolean.return_value = False
+        mock_dt.now.return_value.time.return_value = now_time
+        mock_dt.strptime = datetime.strptime
+        main_thread(tray_app)
 
     return switch_instance
 
@@ -66,18 +66,20 @@ class TestConnectivity:
 
         tray_app = _make_tray_app(switch)
 
-        with patch("main.schedule"):
-            with patch("main.get", return_value=mock_response):
-                with patch("main.Switch", return_value=switch):
-                    with patch("main.configurator") as mock_cfg:
-                        mock_cfg.getfloat.side_effect = [48.8333, 2.33333]
-                        mock_cfg.get.side_effect = ["Paris", "Île-de-France", "Europe/Paris"]
-                        mock_cfg.getboolean.return_value = False
-                        with patch("main.open", MagicMock()):
-                            with patch("main.datetime") as mock_dt:
-                                mock_dt.now.return_value.time.return_value = time(12, 0)
-                                mock_dt.strptime = datetime.strptime
-                                main_thread(tray_app)
+        with (
+            patch("main.schedule"),
+            patch("main.get", return_value=mock_response),
+            patch("main.Switch", return_value=switch),
+            patch("main.configurator") as mock_cfg,
+            patch("main.open", MagicMock()),
+            patch("main.datetime") as mock_dt,
+        ):
+            mock_cfg.getfloat.side_effect = [48.8333, 2.33333]
+            mock_cfg.get.side_effect = ["Paris", "Île-de-France", "Europe/Paris"]
+            mock_cfg.getboolean.return_value = False
+            mock_dt.now.return_value.time.return_value = time(12, 0)
+            mock_dt.strptime = datetime.strptime
+            main_thread(tray_app)
 
 
 # ─── Location fallback ────────────────────────────────────────────────────────
@@ -92,21 +94,23 @@ class TestLocationFallback:
 
         tray_app = _make_tray_app(switch)
 
-        with patch("main.schedule"):
-            with patch("main.get", side_effect=Exception("no internet")):
-                with patch("main.Switch", return_value=switch):
-                    with patch("main.configurator") as mock_cfg:
-                        # Both coords = 0.0 → Paris fallback
-                        mock_cfg.getfloat.side_effect = [0.0, 0.0]
-                        mock_cfg.getboolean.return_value = False
-                        with patch("main.LocationInfo") as mock_loc:
-                            with patch("main.datetime") as mock_dt:
-                                mock_dt.now.return_value.time.return_value = time(12, 0)
-                                mock_dt.strptime = datetime.strptime
-                                main_thread(tray_app)
+        with (
+            patch("main.schedule"),
+            patch("main.get", side_effect=Exception("no internet")),
+            patch("main.Switch", return_value=switch),
+            patch("main.configurator") as mock_cfg,
+            patch("main.LocationInfo") as mock_loc,
+            patch("main.datetime") as mock_dt,
+        ):
+            # Both coords = 0.0 → Paris fallback
+            mock_cfg.getfloat.side_effect = [0.0, 0.0]
+            mock_cfg.getboolean.return_value = False
+            mock_dt.now.return_value.time.return_value = time(12, 0)
+            mock_dt.strptime = datetime.strptime
+            main_thread(tray_app)
 
-                        call_kwargs = mock_loc.call_args
-                        assert call_kwargs.kwargs.get("latitude") == 48.8333
+        call_kwargs = mock_loc.call_args
+        assert call_kwargs.kwargs.get("latitude") == 48.8333
 
     def test_uses_configured_location_when_coordinates_set(self):
         switch = MagicMock()
@@ -116,21 +120,23 @@ class TestLocationFallback:
 
         tray_app = _make_tray_app(switch)
 
-        with patch("main.schedule"):
-            with patch("main.get", side_effect=Exception("no internet")):
-                with patch("main.Switch", return_value=switch):
-                    with patch("main.configurator") as mock_cfg:
-                        mock_cfg.getfloat.side_effect = [43.2965, 5.3698]
-                        mock_cfg.get.side_effect = ["Marseille", "PACA", "Europe/Paris"]
-                        mock_cfg.getboolean.return_value = False
-                        with patch("main.LocationInfo") as mock_loc:
-                            with patch("main.datetime") as mock_dt:
-                                mock_dt.now.return_value.time.return_value = time(12, 0)
-                                mock_dt.strptime = datetime.strptime
-                                main_thread(tray_app)
+        with (
+            patch("main.schedule"),
+            patch("main.get", side_effect=Exception("no internet")),
+            patch("main.Switch", return_value=switch),
+            patch("main.configurator") as mock_cfg,
+            patch("main.LocationInfo") as mock_loc,
+            patch("main.datetime") as mock_dt,
+        ):
+            mock_cfg.getfloat.side_effect = [43.2965, 5.3698]
+            mock_cfg.get.side_effect = ["Marseille", "PACA", "Europe/Paris"]
+            mock_cfg.getboolean.return_value = False
+            mock_dt.now.return_value.time.return_value = time(12, 0)
+            mock_dt.strptime = datetime.strptime
+            main_thread(tray_app)
 
-                        call_kwargs = mock_loc.call_args
-                        assert call_kwargs.kwargs.get("latitude") == 43.2965
+        call_kwargs = mock_loc.call_args
+        assert call_kwargs.kwargs.get("latitude") == 43.2965
 
 
 # ─── Theme switching at startup ───────────────────────────────────────────────

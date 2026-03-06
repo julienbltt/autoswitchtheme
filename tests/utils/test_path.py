@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from src.utils.path import Paths
 
 
@@ -60,11 +58,14 @@ class TestGetUserDataDir:
 
     def test_fallback_uses_getlogin(self, tmp_path):
         env = {k: v for k, v in os.environ.items() if k != "APPDATA"}
-        with patch.dict(os.environ, env, clear=True):
-            with patch("src.utils.path.getlogin", return_value="testuser"):
-                # Prevent actual mkdir on the protected C:\Users\testuser path
-                with patch.object(Path, "mkdir"):
-                    result = Paths.get_user_data_dir()
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("src.utils.path.getlogin", return_value="testuser"),
+            patch.object(
+                Path, "mkdir"
+            ),  # Prevent actual mkdir on the protected C:\Users\testuser path
+        ):
+            result = Paths.get_user_data_dir()
         assert "AutoSwitchTheme" in str(result)
 
 

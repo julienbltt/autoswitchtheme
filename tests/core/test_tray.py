@@ -15,7 +15,11 @@ def tray():
 def tray_with_monitor(tray):
     monitor = MagicMock()
     monitor.theme = "light"
-    monitor.sun_hours = {"sunrise": "07:00", "sunset": "20:00", "timestamp": "2024-06-15"}
+    monitor.sun_hours = {
+        "sunrise": "07:00",
+        "sunset": "20:00",
+        "timestamp": "2024-06-15",
+    }
     tray.theme_monitor = monitor
     return tray
 
@@ -48,9 +52,11 @@ class TestLoadIcon:
         icon_path.touch()
         mock_image = MagicMock()
 
-        with patch.object(Paths, "get_assets_dir", return_value=tmp_path):
-            with patch("src.core.tray.Image.open", return_value=mock_image):
-                result = tray.load_icon()
+        with (
+            patch.object(Paths, "get_assets_dir", return_value=tmp_path),
+            patch("src.core.tray.Image.open", return_value=mock_image),
+        ):
+            result = tray.load_icon()
 
         assert result is mock_image
 
@@ -108,22 +114,28 @@ class TestOnShowStatus:
         mock_key_ctx.__enter__ = MagicMock(return_value=MagicMock())
         mock_key_ctx.__exit__ = MagicMock(return_value=False)
 
-        with patch.object(Paths, "get_log_file", return_value=log_file):
-            with patch("src.core.tray.OpenKey", return_value=mock_key_ctx):
-                with patch("src.core.tray.QueryValue", side_effect=["txtfile", 'notepad.exe "%1"']):
-                    with patch("src.core.tray.run") as mock_run:
-                        tray_with_monitor.on_show_status(None, None)
-                        mock_run.assert_called_once()
+        with (
+            patch.object(Paths, "get_log_file", return_value=log_file),
+            patch("src.core.tray.OpenKey", return_value=mock_key_ctx),
+            patch(
+                "src.core.tray.QueryValue", side_effect=["txtfile", 'notepad.exe "%1"']
+            ),
+            patch("src.core.tray.run") as mock_run,
+        ):
+            tray_with_monitor.on_show_status(None, None)
+            mock_run.assert_called_once()
 
     def test_falls_back_to_notepad_on_registry_error(self, tray_with_monitor, tmp_path):
         log_file = tmp_path / "app.log"
         log_file.touch()
 
-        with patch.object(Paths, "get_log_file", return_value=log_file):
-            with patch("src.core.tray.OpenKey", side_effect=OSError("no registry")):
-                with patch("src.core.tray.run") as mock_run:
-                    tray_with_monitor.on_show_status(None, None)
-                    mock_run.assert_called_once_with(["notepad.exe", log_file])
+        with (
+            patch.object(Paths, "get_log_file", return_value=log_file),
+            patch("src.core.tray.OpenKey", side_effect=OSError("no registry")),
+            patch("src.core.tray.run") as mock_run,
+        ):
+            tray_with_monitor.on_show_status(None, None)
+            mock_run.assert_called_once_with(["notepad.exe", log_file])
 
 
 # ─── setup_tray ──────────────────────────────────────────────────────────────
@@ -132,27 +144,35 @@ class TestOnShowStatus:
 class TestSetupTray:
     def test_creates_pystray_icon(self, tray):
         mock_icon = MagicMock()
-        with patch.object(tray, "load_icon", return_value=MagicMock()):
-            with patch("src.core.tray.pystray.Icon", return_value=mock_icon) as mock_icon_cls:
-                with patch("src.core.tray.pystray.Menu"):
-                    with patch("src.core.tray.pystray.MenuItem"):
-                        tray.setup_tray()
-                        mock_icon_cls.assert_called_once()
+        with (
+            patch.object(tray, "load_icon", return_value=MagicMock()),
+            patch(
+                "src.core.tray.pystray.Icon", return_value=mock_icon
+            ) as mock_icon_cls,
+            patch("src.core.tray.pystray.Menu"),
+            patch("src.core.tray.pystray.MenuItem"),
+        ):
+            tray.setup_tray()
+            mock_icon_cls.assert_called_once()
 
     def test_returns_icon_instance(self, tray):
         mock_icon = MagicMock()
-        with patch.object(tray, "load_icon", return_value=MagicMock()):
-            with patch("src.core.tray.pystray.Icon", return_value=mock_icon):
-                with patch("src.core.tray.pystray.Menu"):
-                    with patch("src.core.tray.pystray.MenuItem"):
-                        result = tray.setup_tray()
+        with (
+            patch.object(tray, "load_icon", return_value=MagicMock()),
+            patch("src.core.tray.pystray.Icon", return_value=mock_icon),
+            patch("src.core.tray.pystray.Menu"),
+            patch("src.core.tray.pystray.MenuItem"),
+        ):
+            result = tray.setup_tray()
         assert result is mock_icon
 
     def test_icon_stored_on_self(self, tray):
         mock_icon = MagicMock()
-        with patch.object(tray, "load_icon", return_value=MagicMock()):
-            with patch("src.core.tray.pystray.Icon", return_value=mock_icon):
-                with patch("src.core.tray.pystray.Menu"):
-                    with patch("src.core.tray.pystray.MenuItem"):
-                        tray.setup_tray()
+        with (
+            patch.object(tray, "load_icon", return_value=MagicMock()),
+            patch("src.core.tray.pystray.Icon", return_value=mock_icon),
+            patch("src.core.tray.pystray.Menu"),
+            patch("src.core.tray.pystray.MenuItem"),
+        ):
+            tray.setup_tray()
         assert tray.icon is mock_icon
